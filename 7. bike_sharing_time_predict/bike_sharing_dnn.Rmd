@@ -1,0 +1,130 @@
+---
+title: "Untitled"
+output: html_document
+---
+# DNN apply forecast model
+```{r}
+library(tidyverse)
+library(plotly)
+library(tidyquant)
+```
+
+```{r}
+data <- read_csv("00_data/sharing_d_tbl.csv") 
+head(data)
+```
+```{r}
+g <- data %>%
+    ggplot(aes(date, cnt)) +
+    geom_line(alpha = 0.5, color = "#2c3e50") +
+    geom_smooth(method = "loess", span = 0.5) +
+    theme_tq() 
+g
+#ggplotly(g) %>%
+    #layout(xaxis = list(rangeslider = list(type = "date")))
+```
+# Feature engineering
+```{r}
+library(timetk)
+```
+
+```{r}
+# add index.num, year, half, quarter, month.lbl, day, wday.lbl
+data_feature <- data %>% 
+    timetk::tk_augment_timeseries_signature() %>% 
+    select(date, cnt, index.num, year, half, quarter, month.lbl, day, wday.lbl)
+data_feature
+    
+```
+```{r}
+# Holidays
+library(timeDate)
+```
+
+
+```{r}
+holidays <- timeDate::holidayNYSE(year = c(2011, 2012)) %>% ymd()
+holidays
+```
+
+
+```{r}
+# Add holiday column
+data_feature <- data_feature %>%
+    mutate(holiday = case_when(
+        date %in% holidays ~ 1,
+        TRUE ~ 0
+    ))
+
+head(data_feature)
+```
+Add feature Weather Data for DC ----
+
+```{r}
+library(riem)
+riem::riem_stations("VA_ASOS") # Virginia US 
+```
+
+
+```{r}
+weather_data <- riem_measures(station = "DCA", date_start = "2011-01-01", date_end = "2013-01-01")
+
+weather_data
+```
+
+
+```{r}
+# After processing data : 
+weather_data <- weather_data %>%
+    select(valid, tmpf, dwpf, relh, sknt, vsby, peak_wind_gust, feel) %>% # select only suitable feature, 
+    mutate(date = as_date(valid)) %>% # convert date to date_time
+    select(-valid) %>% # order descending
+    group_by(date) %>% 
+    summarize_all(~ median(., na.rm = TRUE)) %>% # median value group by date
+    fill(peak_wind_gust, .direction = "down") %>% # fill NA with up and down value column
+    fill(peak_wind_gust, .direction = "up") 
+weather_data
+```
+
+
+```{r}
+data_feature <- data_feature %>%
+    left_join(weather_data, by = "date") 
+
+data_feature
+```
+
+
+```{r}
+library(forecast)
+lm(cnt ~ ., data=data_feature)
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
